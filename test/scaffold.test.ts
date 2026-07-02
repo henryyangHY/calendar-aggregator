@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import worker, { type Env } from '../src/index';
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('handler', () => {
   it('returns 502 when the source feed cannot be built', async () => {

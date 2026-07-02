@@ -8,7 +8,14 @@ import { unavailableEvent } from './placeholder';
 
 export const FETCH_TIMEOUT_MS = 10000;
 
-export async function buildFeed(env: Env, fetchImpl: typeof fetch = fetch): Promise<string> {
+export interface FeedResult {
+  body: string;
+  // true when at least one source failed and a placeholder was inserted, so the
+  // caller can cache the degraded feed for a shorter time.
+  degraded: boolean;
+}
+
+export async function buildFeed(env: Env, fetchImpl: typeof fetch = fetch): Promise<FeedResult> {
   const sources = await fetchSources(env.SOURCES_URL, fetchImpl);
   const results = await fetchAll(sources, FETCH_TIMEOUT_MS, fetchImpl);
 
@@ -21,10 +28,12 @@ export async function buildFeed(env: Env, fetchImpl: typeof fetch = fetch): Prom
 
   const vevents: string[] = [];
   const vtimezones: string[] = [];
+  let degraded = false;
 
   for (const r of results) {
     if (!r.ok) {
       vevents.push(unavailableEvent(r.label));
+      degraded = true;
       continue;
     }
     const parsed = parseIcs(r.text);
@@ -34,5 +43,5 @@ export async function buildFeed(env: Env, fetchImpl: typeof fetch = fetch): Prom
     }
   }
 
-  return assemble(vevents, vtimezones);
+  return { body: assemble(vevents, vtimezones), degraded };
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchAll } from '../src/fetcher';
+import { fetchAll, fetchOne } from '../src/fetcher';
 import type { Source } from '../src/config';
 
 const sources: Source[] = [
@@ -17,7 +17,7 @@ describe('fetchAll', () => {
       throw new Error('network down');
     }) as unknown as typeof fetch;
 
-    const results = await fetchAll(sources, 1000, fetchImpl);
+    const results = await fetchAll(sources, 1000, fetchImpl, 1, 0);
     const ok = results.find((r) => r.label === 'OK')!;
     const bad = results.find((r) => r.label === 'Bad')!;
     expect(ok.ok).toBe(true);
@@ -30,7 +30,44 @@ describe('fetchAll', () => {
     const fetchImpl = vi.fn(async () =>
       ({ ok: false, status: 404, text: async () => '' }) as Response,
     ) as unknown as typeof fetch;
-    const results = await fetchAll([sources[0]], 1000, fetchImpl);
+    const results = await fetchAll([sources[0]], 1000, fetchImpl, 1, 0);
     expect(results[0].ok).toBe(false);
+  });
+});
+
+describe('fetchOne retry + headers', () => {
+  it('retries once and succeeds on the second attempt', async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('transient');
+      return { ok: true, status: 200, text: async () => 'RECOVERED' } as Response;
+    }) as unknown as typeof fetch;
+
+    const r = await fetchOne(sources[0], 1000, fetchImpl, 1, 0);
+    expect(r.ok).toBe(true);
+    expect(r.text).toBe('RECOVERED');
+    expect(calls).toBe(2);
+  });
+
+  it('gives up after the retry is exhausted (initial + 1 retry = 2 calls)', async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('down');
+    }) as unknown as typeof fetch;
+
+    const r = await fetchOne(sources[0], 1000, fetchImpl, 1, 0);
+    expect(r.ok).toBe(false);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends a descriptive User-Agent header', async () => {
+    let seen: Record<string, string> | undefined;
+    const fetchImpl = vi.fn(async (_u: RequestInfo | URL, init?: RequestInit) => {
+      seen = init?.headers as Record<string, string>;
+      return { ok: true, status: 200, text: async () => 'x' } as Response;
+    }) as unknown as typeof fetch;
+
+    await fetchOne(sources[0], 1000, fetchImpl, 1, 0);
+    expect(seen?.['User-Agent']).toContain('calendar-aggregator');
   });
 });

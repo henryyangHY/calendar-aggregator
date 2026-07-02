@@ -17,10 +17,10 @@ function fakeCache() {
 const ctx = { waitUntil: (p: Promise<unknown>) => p, passThroughOnException() {} } as unknown as ExecutionContext;
 
 describe('cachedResponse', () => {
-  it('builds and caches on miss', async () => {
+  it('builds and caches on miss, using the ttl the builder returns', async () => {
     const cache = fakeCache();
-    const builder = vi.fn(async () => 'FRESH');
-    const res = await cachedResponse(new Request('http://x/all.ics'), ctx, builder, 1800, cache);
+    const builder = vi.fn(async () => ({ body: 'FRESH', ttl: 1800 }));
+    const res = await cachedResponse(new Request('http://x/all.ics'), ctx, builder, cache);
     expect(await res.text()).toBe('FRESH');
     expect(res.headers.get('Cache-Control')).toContain('max-age=1800');
     expect(builder).toHaveBeenCalledTimes(1);
@@ -28,11 +28,18 @@ describe('cachedResponse', () => {
 
   it('serves the cached body on hit without rebuilding', async () => {
     const cache = fakeCache();
-    const builder = vi.fn(async () => 'FRESH');
+    const builder = vi.fn(async () => ({ body: 'FRESH', ttl: 1800 }));
     const req = new Request('http://x/all.ics');
-    await cachedResponse(req, ctx, builder, 1800, cache);
-    const res2 = await cachedResponse(req, ctx, builder, 1800, cache);
+    await cachedResponse(req, ctx, builder, cache);
+    const res2 = await cachedResponse(req, ctx, builder, cache);
     expect(await res2.text()).toBe('FRESH');
     expect(builder).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies a short TTL when the builder reports a degraded feed', async () => {
+    const cache = fakeCache();
+    const builder = vi.fn(async () => ({ body: 'DEGRADED', ttl: 120 }));
+    const res = await cachedResponse(new Request('http://x/all.ics'), ctx, builder, cache);
+    expect(res.headers.get('Cache-Control')).toContain('max-age=120');
   });
 });

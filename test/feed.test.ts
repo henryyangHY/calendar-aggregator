@@ -38,17 +38,19 @@ function fetchImplFactory(betaFails: boolean): typeof fetch {
 const env: Env = { SOURCES_URL: 'http://host/sources.json' };
 
 describe('buildFeed', () => {
-  it('merges and labels events from all sources', async () => {
-    const out = await buildFeed(env, fetchImplFactory(false));
-    expect(out).toContain('SUMMARY:[Alpha] Alpha Party');
-    expect(out).toContain('SUMMARY:[Beta] Beta Party');
-    expect(out.startsWith('BEGIN:VCALENDAR')).toBe(true);
+  it('merges and labels events from all sources (not degraded)', async () => {
+    const { body, degraded } = await buildFeed(env, fetchImplFactory(false));
+    expect(body).toContain('SUMMARY:[Alpha] Alpha Party');
+    expect(body).toContain('SUMMARY:[Beta] Beta Party');
+    expect(body.startsWith('BEGIN:VCALENDAR')).toBe(true);
+    expect(degraded).toBe(false);
   });
 
-  it('inserts a placeholder for a failed source but keeps the rest', async () => {
-    const out = await buildFeed(env, fetchImplFactory(true));
-    expect(out).toContain('SUMMARY:[Alpha] Alpha Party');
-    expect(out).toContain('temporarily unavailable');
+  it('inserts a placeholder for a failed source, keeps the rest, and marks degraded', async () => {
+    const { body, degraded } = await buildFeed(env, fetchImplFactory(true));
+    expect(body).toContain('SUMMARY:[Alpha] Alpha Party');
+    expect(body).toContain('temporarily unavailable');
+    expect(degraded).toBe(true);
   });
 
   it('rejects when every event source fails', async () => {
