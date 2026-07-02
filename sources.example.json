@@ -1,0 +1,7 @@
+{
+  "sources": [
+    { "url": "https://partiful.com/example/feed.ics", "label": "Partiful", "category": "Social" },
+    { "url": "https://campusgroups.example/ical/feed.ics", "label": "CampusGroups", "category": "Campus" },
+    { "url": "https://calendar.google.com/calendar/ical/example/basic.ics", "label": "Shared", "category": "Personal" }
+  ]
+}
