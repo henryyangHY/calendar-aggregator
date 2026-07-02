@@ -23,11 +23,12 @@ He means: edit `sources.json` in the **calendar-aggregator-sources** repo. Do th
 
 ### Procedure (works from any directory; needs the `gh` CLI, already authed as henryyangHY)
 
-1. Clone the sources repo to a temp dir:
+1. Clone the sources repo into a fresh temp dir (use `mktemp -d`; do NOT `rm -rf` a
+   fixed path — that gets blocked in sandboxed sessions):
    ```bash
-   rm -rf /tmp/cal-sources && gh repo clone henryyangHY/calendar-aggregator-sources /tmp/cal-sources
+   DIR=$(mktemp -d /tmp/cal-sources.XXXXXX) && gh repo clone henryyangHY/calendar-aggregator-sources "$DIR"
    ```
-2. Edit `/tmp/cal-sources/sources.json`. It's `{ "sources": [ ... ] }`; each entry:
+2. Edit `"$DIR/sources.json"`. It's `{ "sources": [ ... ] }`; each entry:
    ```json
    { "url": "<https .ics URL>", "label": "<shown as [label] on every event>", "category": "<grouping>" }
    ```
@@ -38,7 +39,7 @@ He means: edit `sources.json` in the **calendar-aggregator-sources** repo. Do th
    - **URL must be `https://`.** If Henry gives a `webcal://` link, convert it to `https://`
      (same host + path). The Worker's `fetch` cannot use `webcal://`.
    - **Validate JSON** before committing:
-     `python3 -c "import json;json.load(open('/tmp/cal-sources/sources.json'));print('ok')"`
+     `python3 -c "import json;json.load(open('$DIR/sources.json'));print('ok')"`
    - **Before adding**, sanity-check the feed is reachable and really iCalendar. Use **node
      fetch, not system curl** (macOS system curl / LibreSSL fails TLS on some hosts):
      ```bash
@@ -47,7 +48,7 @@ He means: edit `sources.json` in the **calendar-aggregator-sources** repo. Do th
      Expect `200 BEGIN:VCALENDAR` and some VEVENT count (0 can be legit for a new feed).
 4. Commit + push to `main` (Henry's cross-agent etiquette: add the co-author trailer):
    ```bash
-   cd /tmp/cal-sources && git commit -am "sources: <what changed>" && git push
+   cd "$DIR" && git commit -am "sources: <what changed>" && git push
    ```
    Trailer: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`
 5. Verify:
