@@ -1,16 +1,14 @@
 import { buildFeed } from './feed';
+import { cachedResponse } from './cache';
 
 export interface Env {
   SOURCES_URL: string;
 }
 
 export default {
-  async fetch(_request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
-      const body = await buildFeed(env);
-      return new Response(body, {
-        headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
-      });
+      return await cachedResponse(request, ctx, () => buildFeed(env));
     } catch {
       return new Response('Failed to build calendar feed', { status: 502 });
     }
