@@ -12,6 +12,13 @@ export async function buildFeed(env: Env, fetchImpl: typeof fetch = fetch): Prom
   const sources = await fetchSources(env.SOURCES_URL, fetchImpl);
   const results = await fetchAll(sources, FETCH_TIMEOUT_MS, fetchImpl);
 
+  // If every event-source failed, do NOT return (and cache) a placeholder-only
+  // feed — throw so the handler returns 502 and subscribers keep their last good
+  // sync. Partial failures still merge, with a placeholder for the dead source.
+  if (results.length > 0 && results.every((r) => !r.ok)) {
+    throw new Error('All calendar sources failed to load');
+  }
+
   const vevents: string[] = [];
   const vtimezones: string[] = [];
 

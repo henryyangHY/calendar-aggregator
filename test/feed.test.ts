@@ -50,4 +50,16 @@ describe('buildFeed', () => {
     expect(out).toContain('SUMMARY:[Alpha] Alpha Party');
     expect(out).toContain('temporarily unavailable');
   });
+
+  it('rejects when every event source fails', async () => {
+    const allFailImpl: typeof fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('sources.json')) {
+        return { ok: true, status: 200, json: async () => SOURCES_JSON } as Response;
+      }
+      throw new Error('down');
+    }) as unknown as typeof fetch;
+
+    await expect(buildFeed(env, allFailImpl)).rejects.toThrow();
+  });
 });

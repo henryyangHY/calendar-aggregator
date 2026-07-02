@@ -22,6 +22,9 @@ export function parseSources(data: unknown): Source[] {
   });
 }
 
+// Module-level memo (per Worker isolate): the stale fallback survives only
+// within a warm isolate and is null on a cold start, at which point a
+// sources.json failure correctly propagates and yields a 502 to the client.
 let lastGoodSources: Source[] | null = null;
 
 export async function fetchSources(
