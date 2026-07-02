@@ -24,6 +24,10 @@ export function assemble(vevents: string[], vtimezones: string[]): string {
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'X-WR-CALNAME:Aggregated Calendar',
+    // Refresh hints: compliant clients (Outlook desktop, Apple Calendar) poll at this
+    // interval instead of their slower default. Aligned with the 30-min edge-cache TTL.
+    'REFRESH-INTERVAL;VALUE=DURATION:PT30M',
+    'X-PUBLISHED-TTL:PT30M',
     ...uniqueTz,
     ...uniqueEvents,
     'END:VCALENDAR',

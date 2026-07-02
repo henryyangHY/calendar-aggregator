@@ -16,6 +16,12 @@ describe('assemble', () => {
     expect(out).toContain('UID:b');
   });
 
+  it('advertises a refresh interval so compliant clients poll faster', () => {
+    const out = assemble([ev('a', 'One')], []);
+    expect(out).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT30M');
+    expect(out).toContain('X-PUBLISHED-TTL:PT30M');
+  });
+
   it('drops events whose UID collides (keeps first)', () => {
     const out = assemble([ev('dup', 'First'), ev('dup', 'Second')], []);
     expect(out).toContain('SUMMARY:First');

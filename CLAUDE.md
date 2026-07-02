@@ -59,6 +59,32 @@ He means: edit `sources.json` in the **calendar-aggregator-sources** repo. Do th
      node -e 'fetch("https://calendar-aggregator.henryyang-mmm.workers.dev/all.ics").then(r=>r.text()).then(t=>{console.log("VEVENT",(t.match(/BEGIN:VEVENT/g)||[]).length);console.log("labels",[...new Set([...t.matchAll(/^SUMMARY[^\r\n]*(\[[^\]]+\])/gm)].map(m=>m[1]))])})'
      ```
 
+## Verify a specific edit propagated (e.g. Henry edited a source Google Calendar)
+
+Propagation has three layers: (1) Google's public `.ics` reflecting the edit — minutes;
+(2) our Worker's 30-min edge cache; (3) each subscriber's calendar app re-syncing —
+hours, not controllable. "Did the update succeed?" is answered by **layer 2 (the merged
+feed)**, not by anyone's calendar app.
+
+Check whether a keyword is in the live merged feed (use node, not system curl):
+```bash
+node -e 'const q=process.argv[1];fetch("https://calendar-aggregator.henryyang-mmm.workers.dev/all.ics").then(r=>r.text()).then(t=>{const h=t.split(/\r?\n/).filter(l=>l.startsWith("SUMMARY")&&l.includes(q));console.log(h.length?"FOUND:\n"+h.join("\n"):"not in feed yet (Google not published, or 30-min cache not expired)")})' "<keyword>"
+```
+To separate layer 1 from layer 2, fetch the specific source `.ics` URL directly the same
+way and check its VEVENT count / SUMMARY lines. If it's in layer 1 but not layer 2, the
+Worker cache just hasn't expired yet (≤30 min).
+
+Note on ad-hoc label counting: match SUMMARY labels **non-greedily** — a greedy
+`SUMMARY.*(\[...\])` grabs the LAST bracket, which misreads events whose title itself
+ends in brackets (e.g. `… [Lunch Provided]`). The Worker's labeling is correct; the
+trap is in the checking regex.
+
+To force a client to show it now: Apple Calendar → Refresh; classic Outlook desktop →
+F9 (Send/Receive All Folders); Outlook web / new Outlook / Google Calendar have no
+manual refresh — remove and re-add the subscription. The feed advertises
+`X-PUBLISHED-TTL:PT30M` / `REFRESH-INTERVAL:PT30M`, which Outlook desktop and Apple
+honor; Google ignores it.
+
 ## Gotchas (learned during build)
 
 - **Verify with node fetch, never system `curl`** for `*.workers.dev` — old LibreSSL fails the TLS handshake; the Worker is fine.
